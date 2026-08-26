@@ -51,13 +51,6 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    @keyframes pulseGlow {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.85; transform: scale(0.98); }
-    }
-    .pulse-effect {
-      animation: pulseGlow 2s infinite ease-in-out;
-    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start pb-12">
@@ -68,7 +61,7 @@
     <div class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 text-center relative overflow-hidden">
       <div class="absolute top-0 left-0 right-0 h-16 gradient-hero"></div>
 
-      <!-- Avatar / Logo Oficial Achei no Meli em SVG -->
+      <!-- Avatar / Logo Oficial Achei no Meli -->
       <div class="relative z-10 -mt-1 mb-3">
         <div class="w-28 h-28 mx-auto rounded-full border-4 border-white shadow-md bg-meli-yellow flex items-center justify-center overflow-hidden">
           <svg class="w-full h-full p-0.5" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -106,6 +99,7 @@
         <span><i class="fa-solid fa-shield-halved text-meli-green"></i> Links Oficiais ML</span>
       </div>
 
+      <!-- Barra de Busca por Código ou Produto -->
       <div class="mt-4 relative">
         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
           <i class="fa-solid fa-magnifying-glass"></i>
@@ -123,6 +117,7 @@
       </div>
     </div>
 
+    <!-- Categorias em Pills -->
     <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar text-xs font-bold">
       <button onclick="setCategoryFilter('all', this)" class="cat-pill px-4 py-2 rounded-xl bg-meli-blue text-white shadow-sm flex items-center gap-1.5 whitespace-nowrap">
         <i class="fa-solid fa-fire text-amber-300"></i> Todos
@@ -144,6 +139,7 @@
       </button>
     </div>
 
+    <!-- Banner Fixo de Cupom Principal no Topo -->
     <div id="couponBanner" class="bg-gradient-to-r from-meli-blue to-indigo-900 text-white rounded-2xl p-3.5 shadow-md flex items-center justify-between border border-blue-400/20">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-meli-yellow text-meli-blue flex items-center justify-center font-black text-lg shadow">
@@ -164,7 +160,9 @@
       <h2 class="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
         <i class="fa-solid fa-list-ul"></i> Achadinhos Recentes (<span id="productCount">0</span>)
       </h2>
-      <span class="text-[11px] text-gray-400 font-medium" id="syncStatus">Atualizado em tempo real</span>
+      <span class="text-[11px] text-gray-400 font-medium flex items-center gap-1" id="syncStatus">
+        <i class="fa-solid fa-circle-check text-emerald-500"></i> Atualizado
+      </span>
     </div>
 
     <!-- Grid de Ofertas Dinâmicas -->
@@ -172,7 +170,7 @@
       <!-- Injetado via JavaScript -->
     </div>
 
-    <!-- Estado Vazio (Sem resultados) -->
+    <!-- Estado Vazio -->
     <div id="emptyResult" class="hidden text-center py-10 bg-white rounded-3xl border border-dashed border-gray-300 p-6">
       <i class="fa-solid fa-magnifying-glass text-4xl text-gray-300 mb-2"></i>
       <h3 class="font-bold text-gray-700 text-sm">Nenhum achadinho encontrado</h3>
@@ -184,16 +182,32 @@
 
   </main>
 
+  <!-- Modal Independente de Detalhes do Produto (Para links diretos ?produto=101) -->
+  <div id="productModal" class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl relative transform translate-y-10 transition-transform duration-300" id="modalContainer">
+      <button onclick="closeProductModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold hover:bg-gray-200">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      
+      <div id="modalContent">
+        <!-- Preenchido via JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Componente Toast de Notificação -->
   <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-meli-blueDark text-white px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold z-50 transition-all opacity-0 pointer-events-none flex items-center gap-2 border border-white/20">
     <i class="fa-solid fa-circle-check text-meli-yellow"></i>
     <span id="toastMsg">Cupom copiado com sucesso!</span>
   </div>
 
   <script>
-    // Produtos demonstrativos padrão (aparecem caso a planilha esteja vazia)
+    // URL Backend nativa e fixa do Google Apps Script
+    const SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbzrwQwrZMZlsbjeJ2ZyoZ77MhBx0jkTMfQxyOENBci0GI97qciInFbhM9Sl7LAZMraX/exec";
+
     const defaultProducts = [
       {
-        id: '1',
+        id: '101',
         code: '#101',
         title: 'Fritadeira Airfryer Midea 4L Digital Inox sem Óleo',
         price: '289,90',
@@ -201,81 +215,76 @@
         category: 'casa',
         link: 'https://www.mercadolivre.com.br',
         image: 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=400&auto=format&fit=crop&q=80'
-      },
-      {
-        id: '2',
-        code: '#102',
-        title: 'Fone de Ouvido Bluetooth Sem Fio TWS Bateria Longa Duração',
-        price: '79,90',
-        oldPrice: '149,00',
-        category: 'eletronicos',
-        link: 'https://www.mercadolivre.com.br',
-        image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&auto=format&fit=crop&q=80'
       }
     ];
 
     window.products = [];
     window.currentCategory = 'all';
 
-    // Pega a URL do Apps Script do Google salva no navegador
-    function getApiUrl() {
-      return localStorage.getItem('achei_meli_sheets_url') || '';
-    }
-
     async function loadData() {
-      // 1. Carrega dados do Cache Local (Instantâneo para o cliente)
-      const cachedProducts = localStorage.getItem('achei_meli_products');
-      if (cachedProducts) {
-        try { window.products = JSON.parse(cachedProducts); } catch(e){}
+      // 1. Carrega primeiro do Cache Local para renderização instantânea
+      const cached = localStorage.getItem('achei_meli_data');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.products && parsed.products.length > 0) {
+            window.products = parsed.products;
+          }
+          if (parsed.coupon) {
+            updateTopCouponBanner(parsed.coupon);
+          }
+        } catch(e){}
       } else {
         window.products = defaultProducts;
       }
 
-      const cachedCoupon = localStorage.getItem('achei_meli_top_coupon');
-      if (cachedCoupon) {
-        try { updateTopCouponBanner(JSON.parse(cachedCoupon)); } catch(e){}
-      } else {
-        updateTopCouponBanner({ code: 'ACHEINOMELI10', discount: '10% OFF', desc: 'Aproveite no Mercado Livre!' });
-      }
-
-      // Verifica se o link foi aberto com um código específico (ex: ?code=101 ou ?p=101)
-      const urlParams = new URLSearchParams(window.location.search);
-      const codeParam = urlParams.get('code') || urlParams.get('p');
-      if (codeParam) {
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-          searchInput.value = codeParam.startsWith('#') ? codeParam : '#' + codeParam;
-        }
-      }
-
-      // Renderiza na tela imediatamente
+      // Verifica parâmetro de URL (?produto=101 ou ?code=101)
+      checkUrlParameters();
       window.filterProducts();
 
-      // 2. Busca dados atualizados da Planilha do Google em segundo plano
-      const url = getApiUrl();
-      if (url) {
-        const syncStatus = document.getElementById('syncStatus');
-        if (syncStatus) syncStatus.textContent = 'Sincronizando com a nuvem...';
+      // 2. Busca atualização em segundo plano da Planilha do Google com revalidação limpa
+      const syncStatus = document.getElementById('syncStatus');
+      try {
+        const response = await fetch(`${SHEETS_API_URL}?t=${Date.now()}`, { cache: 'no-store' });
+        const data = await response.json();
 
-        try {
-          const res = await fetch(url);
-          const data = await res.json();
+        if (data.products && Array.isArray(data.products) && data.products.length > 0) {
+          window.products = data.products;
+          localStorage.setItem('achei_meli_data', JSON.stringify(data));
+          window.filterProducts();
+          checkUrlParameters();
+        }
 
-          if (data.products && Array.isArray(data.products) && data.products.length > 0) {
-            window.products = data.products;
-            localStorage.setItem('achei_meli_products', JSON.stringify(data.products));
-            window.filterProducts();
+        if (data.coupon) {
+          updateTopCouponBanner(data.coupon);
+        }
+
+        if (syncStatus) {
+          syncStatus.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500"></i> Atualizado`;
+        }
+      } catch(err) {
+        if (syncStatus) {
+          syncStatus.innerHTML = `<i class="fa-solid fa-clock text-amber-500"></i> Modo Rápido`;
+        }
+      }
+    }
+
+    function checkUrlParameters() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const codeParam = urlParams.get('produto') || urlParams.get('code') || urlParams.get('p');
+      
+      if (codeParam) {
+        const cleanCode = codeParam.startsWith('#') ? codeParam : '#' + codeParam;
+        const found = window.products.find(p => p.code.toLowerCase() === cleanCode.toLowerCase() || p.id === codeParam);
+        
+        if (found) {
+          openProductModal(found);
+        } else {
+          const searchInput = document.getElementById('searchInput');
+          if (searchInput) {
+            searchInput.value = cleanCode;
+            filterProducts();
           }
-
-          if (data.coupon) {
-            localStorage.setItem('achei_meli_top_coupon', JSON.stringify(data.coupon));
-            updateTopCouponBanner(data.coupon);
-          }
-
-          if (syncStatus) syncStatus.textContent = 'Sincronizado';
-        } catch(e) {
-          console.log('Utilizando cache local.');
-          if (syncStatus) syncStatus.textContent = 'Modo Rápido Cache';
         }
       }
     }
@@ -352,13 +361,17 @@
       }
 
       list.forEach(p => {
-        // Cálculo automático da porcentagem de desconto
         const discountPercentage = (p.oldPrice && parseFloat(p.oldPrice.replace('.', '').replace(',', '.')) > 0) 
           ? Math.round((1 - (parseFloat(p.price.replace('.', '').replace(',', '.')) / parseFloat(p.oldPrice.replace('.', '').replace(',', '.')))) * 100) 
           : null;
 
         const card = document.createElement('div');
-        card.className = "bg-white rounded-2xl p-3.5 border border-gray-200/80 shadow-sm hover:shadow-md transition-all flex gap-3 relative overflow-hidden group";
+        card.className = "bg-white rounded-2xl p-3.5 border border-gray-200/80 shadow-sm hover:shadow-md transition-all flex gap-3 relative overflow-hidden group cursor-pointer";
+        card.onclick = (e) => {
+          if (!e.target.closest('a')) {
+            openProductModal(p);
+          }
+        };
 
         card.innerHTML = `
           <!-- Imagem do Produto -->
@@ -381,7 +394,7 @@
                 <span class="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider">
                   ${p.category === 'cupom' ? '🎟️ Cupom Meli' : '⚡️ Oferta Meli'}
                 </span>
-                ${discountPercentage && discountPercentage > 0 ? `<span class="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">-${discountPercentage}%</span>` : ''}
+                ${discountPercentage && discountPercentage > 0 ? `<span class="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">-${discountPercentage}% OFF</span>` : ''}
               </div>
               <h3 class="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
                 ${p.title}
@@ -396,12 +409,13 @@
                 </span>
               </div>
 
-              <!-- Link de Afiliado Mercado Livre -->
+              <!-- Botão de Redirecionamento Direto ao Mercado Livre -->
               <a 
                 href="${p.link}" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 class="px-3.5 py-2 bg-meli-yellow hover:bg-yellow-300 text-meli-blue font-extrabold text-xs rounded-xl shadow active:scale-95 transition-all flex items-center gap-1"
+                onclick="event.stopPropagation();"
               >
                 <span>VER NO MELI</span> <i class="fa-solid fa-chevron-right text-[10px]"></i>
               </a>
@@ -413,7 +427,43 @@
       });
     }
 
-    // Função de Cópia com retorno visual Toast
+    function openProductModal(p) {
+      const modal = document.getElementById('productModal');
+      const container = document.getElementById('modalContainer');
+      const content = document.getElementById('modalContent');
+
+      content.innerHTML = `
+        <div class="text-center space-y-3">
+          <span class="inline-block bg-meli-yellow text-meli-blue font-black text-xs px-3 py-1 rounded-full shadow">
+            Código ${p.code}
+          </span>
+          <div class="w-48 h-48 mx-auto rounded-2xl bg-gray-100 overflow-hidden border border-gray-200">
+            <img src="${p.image}" class="w-full h-full object-cover" />
+          </div>
+          <h2 class="text-sm font-extrabold text-gray-800 leading-snug">${p.title}</h2>
+          
+          <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100 flex items-center justify-center gap-3">
+            ${p.oldPrice ? `<span class="text-xs text-gray-400 line-through">De R$ ${p.oldPrice}</span>` : ''}
+            <span class="text-lg font-black text-meli-green">Por R$ ${p.price}</span>
+          </div>
+
+          <a href="${p.link}" target="_blank" class="w-full py-3.5 bg-meli-yellow hover:bg-yellow-300 text-meli-blue font-black text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 text-base transition-all">
+            <i class="fa-solid fa-cart-shopping"></i> COMPRAR NO MERCADO LIVRE
+          </a>
+        </div>
+      `;
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      container.classList.remove('translate-y-10');
+    }
+
+    function closeProductModal() {
+      const modal = document.getElementById('productModal');
+      const container = document.getElementById('modalContainer');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      container.classList.add('translate-y-10');
+    }
+
     window.copyCoupon = function(code) {
       const textarea = document.createElement("textarea");
       textarea.value = code;
